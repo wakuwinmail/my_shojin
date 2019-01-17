@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
+#include <limits>
 
 template<typename T,typename E>
 struct avl_node{
@@ -15,6 +16,7 @@ public:
     node* right;
     int height;
     int size;
+    E minvalue;
     explicit avl_node(T k,E v,int h){
         key=k;
         value=v;
@@ -22,6 +24,7 @@ public:
         right=nullptr;
         height=h;
         size=1;
+        minvalue=v;
     }
 };
 
@@ -51,6 +54,10 @@ private:
         return u==nullptr?0:u->size;
     }
 
+    E minvalue(node* u){
+        return u==nullptr?std::numeric_limits<E>::max():u->minvalue;
+    }
+
     void updateheight(node *u){
         u->height=std::max(height(u->left),height(u->right))+1;
     }
@@ -62,6 +69,9 @@ private:
 
         u->size-=size(v->left)+1;
         v->size+=size(u->right)+1;
+
+        v->minvalue=std::min(v->value,u->minvalue);
+        u->minvalue=std::min(u->value,std::min(minvalue(u->left),minvalue(u->right)));
 
         updateheight(u);
         updateheight(v);
@@ -75,6 +85,9 @@ private:
 
         u->size-=size(v->right)+1;
         v->size+=size(u->left)+1;
+
+        v->minvalue=std::min(v->value,u->minvalue);
+        u->minvalue=std::min(u->value,std::min(minvalue(u->left),minvalue(u->right)));
 
         updateheight(u);
         updateheight(v);
@@ -136,10 +149,10 @@ public:
         return nullptr;
     }
 
-    E* find_ind(int x){
+    E find_ind(int x){
         auto ret=find_ind(x,root);
-        if(ret== nullptr)return nullptr;
-        else return &ret->value;
+        assert(ret!=nullptr);
+        return ret->value;
     }
 
 private:
@@ -147,11 +160,15 @@ private:
         if(u==nullptr){
             return nullptr;
         }
-        else if(size(u->left)>x){
+        else if(size(u->left)<x){
             return find_ind(x-size(u->left)-1,u->right);
         }
-        else if(size(u->left)<=x){
-            return find_ind(x-1,u->left);
+        else if(size(u->left)>x){
+            return find_ind(x,u->left);
+        }
+        else{
+            //std::cout<<u->key<<std::endl;
+            return u;
         }
     }
 
@@ -174,16 +191,19 @@ private:
         else if(u->key<k){
             u->right=insert(u->right,k,v);
             ++u->size;
+            u->minvalue=std::min(u->minvalue,v);
             return adjustR(u);
         }
         else if(u->key>k){
             u->left=insert(u->left,k,v);
             ++u->size;
+            u->minvalue=std::min(u->minvalue,v);
             return adjustL(u);
         }
         else{
             change=false;
             u->value=v;
+            u->minvalue=std::min(u->minvalue,v);
             return u;
         }
     }
@@ -194,14 +214,16 @@ private:
             //std::cout<<"key:"<<k<<" value:"<<v<<" inserted"<<std::endl;
             return new node(k,v,1);
         }
-        else if(size(u->left)>x){
+        else if(size(u->left)<x){
             u->right=insert_ind(x-size(u->left)-1,u->right,k,v);
             ++u->size;
+            u->minvalue=std::min(u->minvalue,v);
             return adjustR(u);
         }
-        else if(size(u->left)<=x){
-            u->left=insert_ind(x-1,u->left,k,v);
+        else if(size(u->left)>=x){
+            u->left=insert_ind(x,u->left,k,v);
             ++u->size;
+            u->minvalue=std::min(u->minvalue,v);
             return adjustL(u);
         }
     }
@@ -224,11 +246,13 @@ private:
         else if(u->key<k){
             u->right=erase(u->right,k);
             --u->size;
+            u->minvalue=std::min(minvalue(u->left),minvalue(u->right));
             return adjustL(u);
         }
         else if(u->key>k){
             u->left=erase(u->left,k);
             --u->size;
+            u->minvalue=std::min(minvalue(u->left),minvalue(u->right));
             return adjustR(u);
         }
         else{
@@ -253,14 +277,16 @@ private:
             change=false;
             return nullptr;
         }
-        else if(size(u->left)>x){
+        else if(size(u->left)<x){
             u->right=erase_ind(x-size(u->left)-1,u->right);
             --u->size;
+            u->minvalue=std::min(minvalue(u->left),minvalue(u->right));
             return adjustL(u);
         }
-        else if(size(u->left)<x){
-            u->left=erase_ind(x-1,u->left);
+        else if(size(u->left)>x){
+            u->left=erase_ind(x,u->left);
             --u->size;
+            u->minvalue=std::min(minvalue(u->left),minvalue(u->right));
             return adjustR(u);
         }
         else{
@@ -297,7 +323,7 @@ private:
 
 public:
     T nth_min(int x=0){//return x-th minimum key, x is 0 indexed
-        return min(root,x)->key;
+        return nth_min(root,x)->key;
     }
 
 private:
@@ -309,10 +335,10 @@ private:
         node* w=u->right;
 
         if(size(v)<x){//go right subtree
-            return min(w,x-1-size(v));
+            return nth_min(w,x-1-size(v));
         }
         else if(size(v)>x){//go left subtree
-            return min(v,x);
+            return nth_min(v,x);
         }
         else {
             return u;
@@ -320,7 +346,7 @@ private:
     }
 
 public:
-    node* range_query(T l,T r,F f){//[l,r) 2項演算(最小値など) 可換であるもの
+    node* range_query(T l,T r,F f){//[l,r) 2項演算(最小値など) 可換であるもの　TODO:遅延評価で書く
         return range_query(root,l,r,f);
     }
 
@@ -328,8 +354,8 @@ public:
         return range_query(root,l,r,g);
     }
 
-    node* range_query_ind(int l,int r,F f){//[l,r) 2項演算(最小値など) 可換であるもの
-        return range_query_ind(root,l,r,f);
+    E range_min_query_ind(int l,int r){//[l,r)
+        return range_min_query_ind(root,l,r);
     }
 private:
     node* range_query(node* u,T l,T r,F f){
@@ -362,9 +388,23 @@ private:
             return g(u);
         }
     }
-    
-    node* range_query_ind(node* u,int l,int r,F f){
-        //code here!
+
+    E range_min_query_ind(node* u,T l,T r){
+        if(u==nullptr)return std::numeric_limits<E>::max();
+        //std::cout<<u->key<<" l and r:"<<l<<" "<<r<<" u->minvalue"<<minvalue(u)<<std::endl;
+
+        if(r<0||size(u)<=l)return std::numeric_limits<E>::max();
+        if(l<=0&&size(u)<r)return minvalue(u);
+
+        if(size(u->left)<l)return range_min_query_ind(u->right,l-size(u->left)-1,r-size(u->left)-1);
+        else if(size(u->left)>=r)return range_min_query_ind(u->left,l,r);
+        else {
+            E v=range_min_query_ind(u->left,l,r);
+            E w=range_min_query_ind(u->right,l-size(u->left)-1,r-size(u->left)-1);
+            E ret=std::min(v,w);
+            //std::cout<<"ret:"<<ret<<" u->value:"<<u->value<<std::endl;
+            return std::min(ret,u->value);
+        }
     }
 };
 
@@ -385,13 +425,13 @@ void solve(){
         int x,l,r;
         std::cin>>x>>l>>r;
         if(x==0){
-            int* v=at.find_ind(r);
+            int v=at.find_ind(r);
             at.erase_ind(r);
-            at.insert_ind(l,*v,*v);
+            at.insert_ind(l,v,v);
         }
         else if(x==1){
-            auto ret=at.range_query(l,r+1,[](avl_node<int,int>* a,avl_node<int,int>* b){return a->value<b->value ? a : b;});
-            std::cout<<ret->value<<std::endl;
+            auto ret=at.range_min_query_ind(l,r+1);
+            std::cout<<ret<<std::endl;
         }
         else{
             at.erase_ind(l);
