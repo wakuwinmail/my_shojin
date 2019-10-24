@@ -120,6 +120,7 @@ ci openparentheses(strit &t,char stat,ci val){
         if(t==s.end()||*t==')'){
             //std::cout<<"ret,val:"<<ret<<" "<<val<<std::endl;
             ret=calc(stat,ret,val);
+            stock.top()+=ret;
             break;
         }
         std::string ts="";
@@ -149,6 +150,7 @@ ci openparentheses(strit &t,char stat,ci val){
         if(t==s.end()||*t==')'){
             //std::cout<<"ret,val:"<<ret<<" "<<val<<std::endl;
             ret=calc(stat,ret,val);
+            stock.top()+=ret;
             break;
         }
         if(stat=='*'){
@@ -157,10 +159,11 @@ ci openparentheses(strit &t,char stat,ci val){
                 ret+=stock.top();
                 stock.pop();
                 if(ret.overflowcheck())overflowed=true;
+                stock.push(ret);
                 char op=*t;
                 ++t;
-                if(op=='-')return parse(t,op,ret);
-                else return parse(t,op,ret);
+                if(op=='-')return parse(t,op,ci(0,0));
+                else return parse(t,op,ci(0,0));
             }
             else{
                 ret*=val;
@@ -183,7 +186,7 @@ ci openparentheses(strit &t,char stat,ci val){
                 char op=*t;
                 ++t;
                 stock.push(val);
-                return parse(t,op,ret);
+                return parse(t,op,ci(0,0));
                 if(ret.overflowcheck())overflowed=true;
                 //std::cout<<ret<<" "<<val<<std::endl;
             }
@@ -211,6 +214,7 @@ ci parse(strit &t,char stat,ci val){
         if(t==s.end()||*t==')'){
             //std::cout<<"ret,val:"<<ret<<" "<<val<<std::endl;
             ret=calc(stat,ret,val);
+            stock.top()+=ret;
             break;
         }
         std::string ts="";
@@ -244,6 +248,7 @@ ci parse(strit &t,char stat,ci val){
         //std::cout<<"ret:"<<ret<<std::endl;
         if(t==s.end()||*t==')'){
             ret=calc(stat,ret,val);
+            stock.top()+=ret;
             break;
         }
         if(stat=='*'){
@@ -252,10 +257,11 @@ ci parse(strit &t,char stat,ci val){
                 ret+=stock.top();
                 stock.pop();
                 if(ret.overflowcheck())overflowed=true;
+                stock.push(ret);
                 char op=*t;
                 ++t;
-                if(op=='-')return parse(t,op,ret);
-                else return parse(t,op,ret);
+                if(op=='-')return parse(t,op,ci(0,0));
+                else return parse(t,op,ci(0,0));
             }
             else{
                 ret*=val;
@@ -278,7 +284,7 @@ ci parse(strit &t,char stat,ci val){
                 char op=*t;
                 ++t;
                 stock.push(val);
-                return parse(t,op,ret);
+                return parse(t,op,ci(0,0));
                 if(ret.overflowcheck())overflowed=true;
                 //std::cout<<ret<<" "<<val<<std::endl;
             }
@@ -326,8 +332,8 @@ bool solve(){
     char stat;
     if(*it=='-')stat='-';
     else stat='+';
-    ci ans=parse(it,stat,ci(0,0));
-    if(!stock.empty())ans+=stock.top();
+    parse(it,stat,ci(0,0));
+    ci ans=stock.top();
     if(ans.overflowcheck()||overflowed)std::cout<<"overflow"<<std::endl;
     else std::cout<<ans<<std::endl;
     //std::cout<<ans<<std::endl;
